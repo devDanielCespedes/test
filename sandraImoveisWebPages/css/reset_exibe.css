@@ -1,0 +1,87 @@
+/* --------------------------- EXIBE IMOVEIS ------------------------------*/
+.descricao{ width:38%; float: left; padding-left:1em;  }
+.descricao span{ font-size:1.6em; color: #000; }
+.descricao div { font-size: 1.6em; }
+.descricao div span { font-size: 1em; }
+
+.destaque{ width: 98%; margin:0; padding-bottom:1em; margin-top:1.5em; }
+.destaque h1 { color: #B70A06; text-align:left; font-size:1.6em; font-weight:700; }
+
+.voltar { width:98%; margin:0 auto; text-align:center;}
+.info { width:90%; max-width:1000px; font-size:1.4em; text-align:justify; margin:0 auto; padding:10px;}
+
+
+.fotos{ width:58%; float: right;  }
+.foto_destaque{ width:95%; max-height: 400px; float:left; text-align:center; border: 1px solid #ccc; box-shadow: 1px 1px 4px 0px rgba(50, 50, 50, 0.31);  padding:5px; margin-left:0.1em; margin-bottom:1em; }
+.fotos_pequena{ width:100%; float:left; padding:0; margin-bottom:3em; }
+.coluna_fotos{ width:30%; float:left; text-align:center; padding:5px; border: 1px solid #ccc; margin-top:0.5em; margin-right: 0.3em;  box-shadow: 1px 1px 4px 0px rgba(50, 50, 50, 0.31); }
+.coluna_fotos:last-child{ margin-right: 0; }
+
+
+form .input{
+    width:96%;
+    background-color: #FFF;
+    border:solid 1px #ccc ;
+    font-family:"Roboto", Sans-Serif;
+    font-size:16px;
+    padding:12px;
+    margin: 1% 2%;
+    /*border-radius:5px;*/
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.button_enviar{
+    border:hidden;
+    font-weight:400;
+    font-family: 'Oxigen', sans-serif;
+    font-size:16px;
+    background-color: #333;
+    color: #FFFFFF;
+    padding:12px;
+    margin: 2%;
+    cursor:pointer;
+}
+
+.button_enviar:hover{
+    border: hidden;
+    font-weight: 400;
+    font-family: 'Oxigen', sans-serif;
+    font-size: 16px;
+    background-color: #000;
+    color: #FFFFFF;
+    padding:12px;
+    margin: 2%;
+    text-decoration: none;
+    cursor: pointer;
+}
+.msg_contato {
+    color:#060;
+    font-size:1.2em;
+}
+/*------------------------	Media Queries -------------------------*/
+@media screen and (max-width: 768px) {
+
+    .fotos, .descricao { margin-left:0; }
+    .coluna_fotos{ width:28%; margin-right: 0.1em; padding:2px; }
+
+}
+
+@media screen and (max-width: 667px) {
+
+    .fotos { width:98%; padding:0; }
+    .descricao { width:98%; float:left; padding:5px;}
+    .voltar {  float:right; text-align:center; margin-right:1em;}
+
+}
+
+@media screen and (max-width: 420px) {
+    .foto_destaque{ width:93%; }
+    .fotos { width:98%; padding:0; }
+    .coluna_fotos{ width:30%; }
+    .descricao { width:95%; float:left; padding:5px;}
+    .destaque h1 { font-size:1.4em; }
+
+}
+

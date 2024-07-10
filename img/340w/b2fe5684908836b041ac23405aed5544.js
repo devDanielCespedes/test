@@ -1,0 +1,1 @@
+/home/daniel/Desktop/scrappy-with-node-js-puppeteer/img_source/b2fe5684908836b041ac23405aed5544.js
