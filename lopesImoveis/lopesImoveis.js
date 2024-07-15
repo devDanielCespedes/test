@@ -2,12 +2,14 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { getImovelIdByRegex } from "../global/getImovelIdByRegex.js";
 import { capturePage, createDirectories } from "../global/commonScript.js";
+import fs from "fs";
+import { downloadResource } from "../global/downloadResource.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const pageUrl =
-  "https://www.lopes.com.br/imovel/REO496459/venda-apartamento-3-quartos-sao-paulo-jardim-america?listFrom=sugerido&listPosition=1";
+  "https://www.lopes.com.br/imovel/REO918051/venda-apartamento-3-quartos-sao-paulo-jardim-paulista?listFrom=sugerido&listPosition=3";
 
 const imovelId = getImovelIdByRegex({
   regex: /https:\/\/www\.lopes\.com\.br\/imovel\/([A-Z]{3}\d+)/,
@@ -16,15 +18,37 @@ const imovelId = getImovelIdByRegex({
 
 const lopesImoveisImgSubDirs = [imovelId];
 
-const { imgsDir, imovelDir } = createDirectories({
+const additionalDirCallback = (lopesImovelBasePath) => {
+  const assetsDir = path.join(lopesImovelBasePath, "assets/svgs");
+  if (!fs.existsSync(assetsDir)) {
+    fs.mkdirSync(assetsDir, { recursive: true });
+  }
+  return assetsDir;
+};
+
+const { imgsDir, imovelDir, additionalDir } = createDirectories({
   imovelId,
   imgSubDirs: lopesImoveisImgSubDirs,
   dirName: __dirname,
+  additionalDirCallback,
 });
 
-const modifyHtmlForLopes = (htmlContent, imovelDir) => {
-  const logoPath = path.join(imovelDir, "img/REO835156/default_logo.svg");
-  return htmlContent.replace("/assets/svgs/default_logo.svg", logoPath);
+const handleSvgFiles = async ({
+  parsedUrl,
+  fileName,
+  fileExtension,
+  svgDir,
+  resourceMapping,
+}) => {
+  if (fileExtension === ".svg") {
+    console.log("fileExtension === .svg", fileExtension === ".svg");
+    console.log("file extension handle", fileExtension);
+    const destination = path.join(svgDir, fileName);
+    await downloadResource(parsedUrl.href, destination);
+    resourceMapping[parsedUrl.href] = destination;
+    return true; // Skip further processing for this file
+  }
+  return false; // Continue with normal processing
 };
 
 capturePage({
@@ -33,7 +57,8 @@ capturePage({
   imgsDir,
   imovelDir,
   waitForSelector: "img",
-  modifyHtmlForLopes,
+  additionalDir,
+  fileCallback: handleSvgFiles,
 })
   .then((outputPath) => {
     console.log(`Página capturada e salva como '${outputPath}'`);

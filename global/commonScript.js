@@ -4,7 +4,12 @@ import path from "path";
 import crypto from "crypto";
 import { downloadResource } from "../global/downloadResource.js";
 
-export const createDirectories = ({ imovelId, imgSubDirs, dirName }) => {
+export const createDirectories = ({
+  imovelId,
+  imgSubDirs,
+  dirName,
+  additionalDirCallback,
+}) => {
   console.info("Criando diretórios para salvar os arquivos");
 
   const imovelDir = path.join(dirName, `imovel_${imovelId}`);
@@ -23,9 +28,14 @@ export const createDirectories = ({ imovelId, imgSubDirs, dirName }) => {
       fs.mkdirSync(imgSubDirs);
     }
   });
+
+  const additionalDir = additionalDirCallback
+    ? additionalDirCallback(dirName)
+    : {};
+
   console.info("Diretórios criados com sucesso");
 
-  return { imovelDir, imgsDir };
+  return { imovelDir, imgsDir, additionalDir };
 };
 
 export const capturePage = async ({
@@ -34,6 +44,8 @@ export const capturePage = async ({
   imgsDir,
   imovelDir,
   waitForSelector,
+  additionalDir,
+  fileCallback,
 }) => {
   console.info("Iniciando captura da página");
   const browser = await puppeteer.launch({ headless: true });
@@ -78,9 +90,26 @@ export const capturePage = async ({
     try {
       const parsedUrl = new URL(resourceUrl, pageUrl);
       let fileName = path.basename(parsedUrl.pathname);
+      const fileExtension = path.extname(fileName);
+
+      if (fileCallback) {
+        const shouldSkip = await fileCallback({
+          parsedUrl,
+          fileName,
+          fileExtension,
+          svgDir: additionalDir,
+          resourceUrl,
+          resourceMapping,
+          // imovelDir,
+          // imgsDir,
+        });
+        if (shouldSkip) {
+          return;
+        }
+      }
 
       const hash = generateHash(resourceUrl);
-      const fileExtension = path.extname(fileName);
+
       fileName = `${path.basename(
         fileName,
         fileExtension
@@ -96,7 +125,8 @@ export const capturePage = async ({
         fileName.endsWith(".webp") ||
         fileName.endsWith(".svg") ||
         fileName.endsWith(".gif") ||
-        fileName.endsWith(".ico")
+        fileName.endsWith(".ico") ||
+        fileName.endsWith(".JPG")
       ) {
         imgSubDirs.forEach(async (subDir) => {
           const destination = path.join(imgsDir, subDir, fileName);
