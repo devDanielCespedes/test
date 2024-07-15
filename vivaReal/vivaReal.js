@@ -4,35 +4,34 @@ import puppeteer from "puppeteer";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import fetch from "node-fetch";
 import crypto from "crypto";
+import { downloadResource } from "../global/downloadResource.js";
+import { getImovelIdByRegex } from "../global/getImovelIdByRegex.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Função para baixar recursos
-async function downloadResource(resourceUrl, destination) {
-  try {
-    const response = await fetch(resourceUrl);
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    fs.writeFileSync(destination, buffer);
-  } catch (error) {
-    console.error(`Failed to download ${resourceUrl}: ${error.message}`);
-  }
+const pageUrl =
+  "https://www.vivareal.com.br/imovel/casa-2-quartos-sao-mateus-zona-leste-sao-paulo-com-garagem-78m2-aluguel-RS1250-id-2727844548/";
+
+console.info("Pegando id do imovel na url");
+
+const imovelId = getImovelIdByRegex({
+  regex: /id-(\d+)\//,
+  stringToApplyRegex: pageUrl,
+});
+
+console.info(`Imovel id: ${imovelId}`);
+console.info("Criando diretórios para salvar os arquivos");
+
+const imovelDir = path.join(__dirname, `imovel_${imovelId}`);
+if (!fs.existsSync(imovelDir)) {
+  fs.mkdirSync(imovelDir);
 }
 
-const imgsDir = path.join(__dirname, "img");
+const imgsDir = path.join(imovelDir, "img");
 if (!fs.existsSync(imgsDir)) {
   fs.mkdirSync(imgsDir);
-}
-
-const imgSourceDir = path.join(__dirname, "img_source");
-if (!fs.existsSync(imgSourceDir)) {
-  fs.mkdirSync(imgSourceDir);
 }
 
 const vivaRealImgSubDirs = [
@@ -51,30 +50,26 @@ vivaRealImgSubDirs.forEach((subDir) => {
   }
 });
 
-const vivaRealWebPagesDir = path.join(__dirname, "vivaRealWebPages");
-if (!fs.existsSync(vivaRealWebPagesDir)) {
-  fs.mkdirSync(vivaRealWebPagesDir);
-}
+console.info("Diretórios criados com sucesso");
+
+console.info("Iniciando captura da página");
 
 (async () => {
   const browser = await puppeteer.launch({
     headless: true,
   });
-
+  console.info("Browser iniciado");
   const page = await browser.newPage();
   await page.setUserAgent(
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
   );
 
-  const pageUrl =
-    "https://www.vivareal.com.br/imovel/casa-2-quartos-sao-mateus-zona-leste-sao-paulo-com-garagem-78m2-aluguel-RS1250-id-2727844548/";
-
   await page.goto(pageUrl, { waitUntil: "networkidle2" });
+  console.info("Página carregada");
+  await page.waitForSelector(".carousel-photos--item");
+  console.info("Elementos carregados");
 
-  // Espera elementos específicos para garantir que a página esteja totalmente carregada
-  await page.waitForSelector(".carousel-photos--item"); // Espera todas as imagens serem carregadas
-
-  // Extrair todos os recursos (CSS, JS, imagens)
+  console.info("Extraindo recursos da página");
   const resourceUrls = await page.evaluate(() => {
     const urls = [];
     document
@@ -96,23 +91,18 @@ if (!fs.existsSync(vivaRealWebPagesDir)) {
     return urls;
   });
 
-  console.log("resourceUrls", resourceUrls);
-
-  // Mapeamento dos URLs dos recursos para seus novos caminhos locais
   const resourceMapping = {};
 
-  // Função para gerar um hash MD5 a partir da URL
   const generateHash = (url) => {
     return crypto.createHash("md5").update(url).digest("hex");
   };
 
-  // Baixar e salvar todos os recursos
+  console.info("Baixando recursos");
   const downloadPromises = resourceUrls.map(async (resourceUrl) => {
     try {
-      const parsedUrl = new URL(resourceUrl, pageUrl); // Tratar URLs relativos
+      const parsedUrl = new URL(resourceUrl, pageUrl);
       let fileName = path.basename(parsedUrl.pathname);
 
-      // Adicionar um hash ao nome do arquivo para garantir unicidade
       const hash = generateHash(resourceUrl);
       const fileExtension = path.extname(fileName);
       fileName = `${path.basename(
@@ -120,26 +110,24 @@ if (!fs.existsSync(vivaRealWebPagesDir)) {
         fileExtension
       )}_${hash}${fileExtension}`;
 
-      // Substituir caracteres inválidos no nome do arquivo
+      // Replace invalid characters in the file name
       fileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
 
       if (
         fileName.endsWith(".jpg") ||
         fileName.endsWith(".jpeg") ||
         fileName.endsWith(".png") ||
-        fileName.endsWith(".webp")
+        fileName.endsWith(".webp") ||
+        fileName.endsWith(".svg") ||
+        fileName.endsWith(".gif") ||
+        fileName.endsWith(".ico")
       ) {
-        const destination = path.join(imgSourceDir, fileName);
-        await downloadResource(parsedUrl.href, destination);
-
         vivaRealImgSubDirs.forEach(async (subDir) => {
-          const symlinkDestination = path.join(imgsDir, subDir, fileName);
-          if (!fs.existsSync(symlinkDestination)) {
-            fs.symlinkSync(destination, symlinkDestination);
-          }
+          const destination = path.join(imgsDir, subDir, fileName);
+          await downloadResource(parsedUrl.href, destination);
           resourceMapping[
             parsedUrl.href
-          ] = `http://127.0.0.1:5500/img/${subDir}/${fileName}`;
+          ] = `http://127.0.0.1:5500/vivaReal/imovel_${imovelId}/img/${subDir}/${fileName}`;
         });
       }
     } catch (error) {
@@ -149,21 +137,16 @@ if (!fs.existsSync(vivaRealWebPagesDir)) {
 
   await Promise.all(downloadPromises);
 
-  const regex = /id-(\d+)\//;
-  const match = pageUrl.match(regex);
-  const imovelId = match[1];
-
-  // Modificar o HTML para referenciar os recursos locais
+  console.info("Recursos baixados com sucesso");
+  console.info("Modificando HTML para referenciar os recursos locais");
   let htmlContent = await page.content();
-
-  // Substituir URLs antigos pelos novos caminhos locais
   for (const [originalUrl, localPath] of Object.entries(resourceMapping)) {
     htmlContent = htmlContent.replace(
       new RegExp(originalUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
       localPath
     );
   }
-  const outputPath = path.join(vivaRealWebPagesDir, `imovel_${imovelId}.html`);
+  const outputPath = path.join(imovelDir, `page.html`);
 
   fs.writeFileSync(outputPath, htmlContent);
 
